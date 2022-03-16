@@ -1,0 +1,2 @@
+include ':IntegrationExampleKotlin:app_kotlin'
+include ':IntegrationExampleJava:app_java'
