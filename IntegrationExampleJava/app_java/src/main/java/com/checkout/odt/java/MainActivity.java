@@ -11,32 +11,60 @@ import com.google.android.gms.wallet.PaymentDataRequest;
 import com.checkout.odt.*;
 import com.checkout.odt.threeDSecure.*;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
 
 public class MainActivity extends AppCompatActivity {
 
     private static int PAY_ACTIVITY_REQUEST = 888;
-    private static String SECRET = "your_secret";
+    private static String SECRET = "Your secret";
     private static int PROJECT_ID = 123;
+    private static String RANDOM_PAYMENT_ID = "test_integration_odt_" + getRandomNumber();
+
+    //STEP 1: Create payment info object with product information
+    private ODTPaymentInfo paymentInfo = getPaymentInfoOnlyRequiredParams(); // getPaymentInfoAllParams
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Create payment info with product information
-        ODTPaymentInfo paymentInfo = getPaymentInfoOnlyRequiredParams(); // getPaymentInfoAllParams
+        //STEP 2: Signature should be generated on your server and delivered to your app
+        String signature = SignatureGenerator.generateSignature(getParamsForSigning(), SECRET);
 
-        // enabled google pay
-        configureGooglePayParams(paymentInfo);
+        //STEP 3: Sign payment info object
+        setSignature(signature);
 
-        // Signature should be generated on your server and delivered to your app
-        String signature = SignatureGenerator.generateSignature(paymentInfo.getParamsForSignature(), SECRET);
+        //STEP 4: Create the intent of SDK
+        Intent SDKIntent = ODTPaySDK.buildIntent(this, paymentInfo);
 
-        // Sign payment info
-        paymentInfo.setSignature(signature);
+        //STEP 5: Present Checkout UI
+        startActivityForResult(SDKIntent, PAY_ACTIVITY_REQUEST);
 
-        // Present Checkout UI
-        startActivityForResult(ODTPaySDK.buildIntent(this, paymentInfo), PAY_ACTIVITY_REQUEST);
+        //Additional STEP (if necessary): add additional fields
+        setupAdditionalFields();
+
+        //Additional STEP (if necessary): add recurrent info
+        setupRecurrentInfo();
+
+        //Additional STEP (if necessary): add 3DS
+        setupThreeDSecureParams();
+
+        //Additional STEP (if necessary): add google pay
+        setupGooglePay();
+
+        //Additional STEP (if necessary): custom behaviour of SDK
+        setupScreenDisplayModes();
+        //Or you can do this like that:
+        //addODTScreenDisplayModes();
+    }
+
+    private static String getRandomNumber() {
+        int randomNumber = (new Random().nextInt(9999) + 1000);
+        return Integer.toString(randomNumber);
     }
 
     // Handle SDK result
@@ -77,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
     ODTPaymentInfo getPaymentInfoOnlyRequiredParams() {
         return new ODTPaymentInfo(
                 PROJECT_ID, // project ID that is assigned to you
-                "dfgdfg546456", // payment ID to identify payment in your system
+                RANDOM_PAYMENT_ID, // payment ID to identify payment in your system
                 100, // 1.00
                 "USD"
         );
@@ -86,7 +114,7 @@ public class MainActivity extends AppCompatActivity {
     ODTPaymentInfo getPaymentInfoAllParams() {
         return new ODTPaymentInfo(
                 PROJECT_ID, // project ID that is assigned to you
-                "internal_payment_id_1", // payment ID to identify payment in your system
+                RANDOM_PAYMENT_ID, // payment ID to identify payment in your system
                 100, // 1.00
                 "USD",
                 "T-shirt with dog print",
@@ -95,29 +123,154 @@ public class MainActivity extends AppCompatActivity {
         );
     }
 
-    // Additional
-    void setDMSPayment(ODTPaymentInfo paymentInfo) {
-        paymentInfo.setAction(ODTPaymentInfo.ActionType.Auth);
+    //Get params for signing payment (do it only after create paymentInfo object)
+    private String getParamsForSigning()  {
+        return paymentInfo.getParamsForSignature();
     }
 
-    void setActionTokenize(ODTPaymentInfo paymentInfo) {
-        paymentInfo.setAction(ODTPaymentInfo.ActionType.Tokenize);
+    //Getters for all params payment info
+    private String getSignature() {
+        return paymentInfo.getSignature();
     }
 
-    void setActionVerify(ODTPaymentInfo paymentInfo) {
-        paymentInfo.setAction(ODTPaymentInfo.ActionType.Verify);
+    private Integer getProjectId() {
+        return paymentInfo.getProjectId();
     }
 
-    void setToken(ODTPaymentInfo paymentInfo) {
+    private String getPaymentId() {
+        return paymentInfo.getPaymentId();
+    }
+
+    private Long getPaymentAmount()  {
+        return paymentInfo.getPaymentAmount();
+    }
+
+    private String getPaymentCurrency() {
+        return paymentInfo.getPaymentCurrency();
+    }
+
+    private String getPaymentDescription() {
+        return paymentInfo.getPaymentDescription();
+    }
+
+    private String getCustomerId() {
+        return paymentInfo.getCustomerId();
+    }
+
+    private String getRegionCode() {
+        return paymentInfo.getRegionCode();
+    }
+
+    private String getLanguageCode() { //Default value is mobile device language
+        return paymentInfo.getLanguageCode();
+    }
+
+    private String getToken() {
+        return paymentInfo.getToken();
+    }
+
+    private String getReceiptData() {
+        return paymentInfo.getReceiptData();
+    }
+
+    private Integer getBankId() {
+        return paymentInfo.getBankId();
+    }
+
+    private Boolean getHideSavedWallets() {
+        return paymentInfo.getHideSavedWallets();
+    }
+
+    private String getForcePaymentMethod() {
+        return paymentInfo.getForcePaymentMethod();
+    }
+
+    private ODTPaymentInfo.ActionType getAction()  { //Default payment action type is ActionType.Sale
+        return paymentInfo.getAction();
+    }
+
+    //Setters for payment info
+    private void setSignature(String signature) {
+        paymentInfo.setSignature(signature);
+    }
+    //Set the custom language code (see the ISO 639-1 codes list)
+    private void setLanguageCode() {
+        paymentInfo.setLanguageCode("language code");
+    }
+
+    private void setToken() {
         paymentInfo.setToken("token");
     }
 
-    void setReceiptData(ODTPaymentInfo paymentInfo) {
-        final String RECEIPT_DATA = "receipt data";
-        paymentInfo.setReceiptData(RECEIPT_DATA);
+    private void setReceiptData() {
+        paymentInfo.setReceiptData("receipt data");
     }
 
-    void setRecurrent(ODTPaymentInfo paymentInfo) {
+    // if you want to hide the saved cards, pass the value - true
+    private void setHideSavedWallets() {
+        paymentInfo.setHideSavedWallets(false);
+    }
+
+    // For forced opening of the payment method, pass its code. Example: qiwi, card ...
+    private void setForcePaymentMethod() {
+        paymentInfo.setForcePaymentMethod("card");
+    }
+
+    private void setBankId() {
+        paymentInfo.setBankId(123);
+    }
+
+
+    //Additional getters and setters
+    //RecurrentInfo
+    private ODTRecurrentInfo getODTRecurrentInfo() {
+        return paymentInfo.getODTRecurrentInfo();
+    }
+    private void setRecurrentInfo(ODTRecurrentInfo recurrentInfo) {
+        paymentInfo.setRecurrent(recurrentInfo);
+    }
+    //Screen Display Mode
+    private List<ODTScreenDisplayMode> getScreenDisplayModes() {
+        return paymentInfo.getODTScreenDisplayModes();
+    }
+    private void setODTScreenDisplayModes(List<ODTScreenDisplayMode> odtScreenDisplayModes) {
+        paymentInfo.setODTScreenDisplayMode(odtScreenDisplayModes);
+    }
+    //Alternative variant of setter
+    private void addODTScreenDisplayModes() {
+        paymentInfo
+                .addODTScreenDisplayMode("hide_decline_final_page")
+                .addODTScreenDisplayMode("hide_success_final_page");
+    }
+    //AdditionalFields
+    private ODTAdditionalField[] getODTAdditionalFields()  {
+        return paymentInfo.getODTAdditionalFields();
+    }
+    private void setODTAdditionalFields(ODTAdditionalField[] odtAdditionalFields) {
+        paymentInfo.setODTAdditionalFields(odtAdditionalFields);
+    }
+    //3DS Info
+    private ODTThreeDSecureInfo getODTThreeDSecureInfo() {
+        return paymentInfo.getODTThreeDSecureInfo();
+    }
+    private void setODTThreeDSecureInfo(ODTThreeDSecureInfo odtThreeDSecureInfo)  {
+        paymentInfo.setODTThreeDSecureInfo(odtThreeDSecureInfo);
+    }
+    //Setters for custom payment action type (Auth, Tokenize, Verify)
+    private void setDMSPayment() {
+        paymentInfo.setAction(ODTPaymentInfo.ActionType.Auth);
+    }
+    private void setActionTokenize() {
+        paymentInfo.setAction(ODTPaymentInfo.ActionType.Tokenize);
+    }
+    private void setActionVerify() {
+        paymentInfo.setAction(ODTPaymentInfo.ActionType.Verify);
+    }
+    private void setAction(ODTPaymentInfo.ActionType action) {
+        paymentInfo.setAction(action);
+    }
+
+    private void setupRecurrentInfo() {
         ODTRecurrentInfo recurrentInfo = new ODTRecurrentInfo(
                 "R", // type
                 "20", // expiry day
@@ -127,36 +280,33 @@ public class MainActivity extends AppCompatActivity {
                 "12:00:00", // start time
                 "12-02-2020", // start date
                 "your_recurrent_id"); // recurrent payment ID
-
         // Additional options if needed
         recurrentInfo.setAmount(1000);
-        recurrentInfo.setSchedule(new ODTRecurrentInfoSchedule[]{
-               new ODTRecurrentInfoSchedule("20-10-2020",1000),
-                new ODTRecurrentInfoSchedule("20-10-2020",1000)
-        });
-
-        paymentInfo.setRecurrent(recurrentInfo);
+        ODTRecurrentInfoSchedule[] odtRecurrentInfoSchedules = new ODTRecurrentInfoSchedule[] {
+                new ODTRecurrentInfoSchedule("20-10-2020", 1000),
+                new ODTRecurrentInfoSchedule("20-10-2020", 1000)
+        };
+        recurrentInfo.setSchedule(odtRecurrentInfoSchedules);
+        setRecurrentInfo(recurrentInfo);
     }
 
-    void setKnownAdditionalFields(ODTPaymentInfo paymentInfo) {
-        paymentInfo.setODTAdditionalFields(new ODTAdditionalField[]{
+    private void setupAdditionalFields() {
+        ODTAdditionalField[] odtAdditionalFields = new ODTAdditionalField[] {
                 new ODTAdditionalField(ODTAdditionalFieldEnums.AdditionalFieldType.customer_first_name, "Mark"),
-                new ODTAdditionalField(ODTAdditionalFieldEnums.AdditionalFieldType.billing_country, "US"),
-        });
+                new ODTAdditionalField(ODTAdditionalFieldEnums.AdditionalFieldType.billing_country, "US")
+        };
+        setODTAdditionalFields(odtAdditionalFields);
     }
 
-    // if you want to hide the saved cards, pass the value - true
-    void setHideSavedWallets(ODTPaymentInfo paymentInfo) {
-        paymentInfo.setHideSavedWallets(false);
+    private void setupScreenDisplayModes() {
+        ArrayList<ODTScreenDisplayMode> odtScreenDisplayModes = new ArrayList<>();
+        odtScreenDisplayModes.add(ODTScreenDisplayMode.HIDE_SUCCESS_FINAL_PAGE);
+        odtScreenDisplayModes.add(ODTScreenDisplayMode.HIDE_DECLINE_FINAL_PAGE);
+        setODTScreenDisplayModes(odtScreenDisplayModes);
     }
 
-    // For forced opening of the payment method, pass its code. Example: qiwi, card ...
-    void setForcePaymentMethod(ODTPaymentInfo paymentInfo) {
-        paymentInfo.setForcePaymentMethod("card");
-    }
-
-    // Setup 3D Secure 2.0 parameters
-    void setThreeDSecureParams(ODTPaymentInfo paymentInfo) {
+    // Setup 3D Secure parameters
+    private void setupThreeDSecureParams() {
         ODTThreeDSecureInfo threeDSecureInfo = new ODTThreeDSecureInfo();
 
         ODTThreeDSecurePaymentInfo threeDSecurePaymentInfo = new ODTThreeDSecurePaymentInfo();
@@ -175,7 +325,7 @@ public class MainActivity extends AppCompatActivity {
                 .setCurrency("USD") // Currency of payment with prepaid or gift card in the ISO 4217 alpha-3 format
                 .setCount(1); // Total number of individual prepaid or gift cards/codes used in purchase.
 
-        threeDSecurePaymentInfo.setGiftCard(threeDSecureGiftCardInfo);
+        threeDSecurePaymentInfo.setGiftCard(threeDSecureGiftCardInfo); // object with information about payment with prepaid card or gift card.
 
         ODTThreeDSecureCustomerInfo threeDSecureCustomerInfo = new ODTThreeDSecureCustomerInfo();
         threeDSecureCustomerInfo
@@ -184,7 +334,7 @@ public class MainActivity extends AppCompatActivity {
                 .setWorkPhone("73141211111") // Customer work phone number.
                 .setBillingRegionCode("ABC"); // State, province, or region code in the ISO 3166-2 format. Example: SPE for Saint Petersburg, Russia.
 
-        ODTThreeDSecureAccountInfo threeDSecureAccountInfo = new ODTThreeDSecureAccountInfo();
+        ODTThreeDSecureAccountInfo threeDSecureAccountInfo = new ODTThreeDSecureAccountInfo(); // object with account information on record with merchant
 
         threeDSecureAccountInfo
                 .setActivityDay(22) // Number of card payment attempts in the last 24 hours.
@@ -205,7 +355,7 @@ public class MainActivity extends AppCompatActivity {
                 .setPaymentAge("01-10-2019") // Card record creation date.
                 .setPaymentAgeIndicator("01"); //  Number of days since the payment card details were saved in a customer account.
 
-        ODTThreeDSecureShippingInfo threeDSecureShippingInfo = new ODTThreeDSecureShippingInfo();
+        ODTThreeDSecureShippingInfo threeDSecureShippingInfo = new ODTThreeDSecureShippingInfo(); // object that contains shipment details
 
         threeDSecureShippingInfo
                 .setType("01") //Shipment indicator.
@@ -220,7 +370,7 @@ public class MainActivity extends AppCompatActivity {
                 .setRegionCode("MOW") // State, province, or region code in the ISO 3166-2 format.
                 .setNameIndicator("01"); // Shipment recipient flag.
 
-        ODTThreeDSecureMpiResultInfo threeDSecureMpiResultInfo = new ODTThreeDSecureMpiResultInfo();
+        ODTThreeDSecureMpiResultInfo threeDSecureMpiResultInfo = new ODTThreeDSecureMpiResultInfo(); // object that contains information about previous customer authentication
 
         threeDSecureMpiResultInfo
                 .setAcsOperationId("321412-324-sda23-2341-adf12341234") // The ID the issuer assigned to the previous customer operation and returned in the acs_operation_id parameter inside the callback with payment processing result. Maximum 30 characters.
@@ -228,18 +378,18 @@ public class MainActivity extends AppCompatActivity {
                 .setAuthenticationTimestamp("21323412321324"); // Date and time of the previous successful customer authentication as returned in the mpi_timestamp parameter inside the callback message with payment processing result.
 
         threeDSecureCustomerInfo
-                .setAccountInfo(threeDSecureAccountInfo)
-                .setMpiResultInfo(threeDSecureMpiResultInfo)
-                .setShippingInfo(threeDSecureShippingInfo);
+                .setAccountInfo(threeDSecureAccountInfo) // object with account information on record with merchant
+                .setMpiResultInfo(threeDSecureMpiResultInfo) // object that contains information about previous customer authentication
+                .setShippingInfo(threeDSecureShippingInfo); // object that contains shipment details
 
 
         threeDSecureInfo.setThreeDSecureCustomerInfo(threeDSecureCustomerInfo);
         threeDSecureInfo.setThreeDSecurePaymentInfo(threeDSecurePaymentInfo);
 
-        paymentInfo.setODTThreeDSecureInfo(threeDSecureInfo);
+        setODTThreeDSecureInfo(threeDSecureInfo);
     }
 
-    void configureGooglePayParams(ODTPaymentInfo paymentInfo) {
+    private void setupGooglePay() {
         paymentInfo.setMerchantId("your merchant id");
         paymentInfo.setPaymentDataRequest(PaymentDataRequest.fromJson(GooglePayJsonParams.ExampleJSON));
     }

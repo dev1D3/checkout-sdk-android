@@ -6,37 +6,57 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.wallet.PaymentDataRequest
 import com.checkout.odt.*
 import com.checkout.odt.threeDSecure.*
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
     private val PAY_ACTIVITY_REQUEST = 888
-    private val SECRET = "your_secret"
-    private val PROJECT_ID = 123
+    private val SECRET: String = "Your secret"
+    private val PROJECT_ID: Int = 123
+    private val RANDOM_PAYMENT_ID = "test_integration_odt_" + getRandomNumber()
+    private lateinit var paymentInfo: ODTPaymentInfo
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Create payment info with product information
-        val paymentInfo = getPaymentInfoOnlyRequiredParams() // getPaymentInfoAllParams
+        //STEP 1: Create payment info object with product information
+        paymentInfo = getPaymentInfoOnlyRequiredParams() // getPaymentInfoAllParams
 
-        // enabled google pay
-        configureGooglePayParams(paymentInfo)
+        //STEP 2: Signature should be generated on your server and delivered to your app
+        val signature = SignatureGenerator.generateSignature(getParamsForSigning() ?: "", SECRET)
 
-        // Signature should be generated on your server and delivered to your app
-        val signature = SignatureGenerator.generateSignature(paymentInfo.paramsForSignature, SECRET)
+        //STEP 3: Sign payment info object
+        setSignature(signature)
 
-        // Sign payment info
-        paymentInfo.signature = signature
+        //STEP 4: Create the intent of SDK
+        val SDKIntent = ODTPaySDK.buildIntent(this, paymentInfo)
 
-        // Present Checkout UI
-        startActivityForResult(ODTPaySDK.buildIntent(this, paymentInfo), PAY_ACTIVITY_REQUEST)
+        //STEP 5: Present Checkout UI (default theme is light)
+        startActivityForResult(SDKIntent, PAY_ACTIVITY_REQUEST)
+
+        //Additional STEP (if necessary): add additional fields
+        setupAdditionalFields()
+        //Or you can do this like that:
+        //addODTScreenDisplayModes()
+
+        //Additional STEP (if necessary): add recurrent info
+        setupRecurrentInfo()
+
+        //Additional STEP (if necessary): add 3DS
+        setupThreeDSecureParams()
+
+        //Additional STEP (if necessary): add google pay
+        setupGooglePay()
+
+        //Additional STEP (if necessary): custom behaviour of SDK
+        setupScreenDisplayModes()
     }
 
-    // Handle SDK result
+    //STEP 6: Handle SDK result
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if(requestCode == PAY_ACTIVITY_REQUEST) {
+        if (requestCode == PAY_ACTIVITY_REQUEST) {
             when (resultCode) {
                 ODTPaySDK.RESULT_SUCCESS -> {}
                 ODTPaySDK.RESULT_CANCELLED -> {}
@@ -48,11 +68,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    //Only for testing payment
+    private fun getRandomNumber(): String {
+        val randomNumber = Random().nextInt(9999) + 1000
+        return randomNumber.toString()
+    }
+
     // Payment Info
     private fun getPaymentInfoOnlyRequiredParams(): ODTPaymentInfo {
         return ODTPaymentInfo(
             PROJECT_ID, // project ID that is assigned to you
-            "your_payment_id", // payment ID to identify payment in your system
+            RANDOM_PAYMENT_ID, // payment ID to identify payment in your system
             100, // 1.00
             "USD"
         )
@@ -61,7 +87,7 @@ class MainActivity : AppCompatActivity() {
     private fun getPaymentInfoAllParams(): ODTPaymentInfo {
         return ODTPaymentInfo(
             PROJECT_ID, // project ID that is assigned to you
-            "your_payment_id", // payment ID to identify payment in your system
+            RANDOM_PAYMENT_ID, // payment ID to identify payment in your system
             100, // 1.00
             "USD",
             "T-shirt with dog print",
@@ -70,38 +96,154 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    // Additional
-    internal fun setDMSPayment(paymentInfo: ODTPaymentInfo) {
-        paymentInfo.setAction(ODTPaymentInfo.ActionType.Auth)
+    //Get params for signing payment (do it only after create paymentInfo object)
+    private fun getParamsForSigning(): String? {
+        return paymentInfo.paramsForSignature
     }
 
-    internal fun setActionTokenize(paymentInfo: ODTPaymentInfo) {
-        paymentInfo.setAction(ODTPaymentInfo.ActionType.Tokenize)
+    //Getters for all params payment info
+    private fun getSignature(): String? {
+        return paymentInfo.signature
     }
 
-    internal fun setActionVerify(paymentInfo: ODTPaymentInfo) {
-        paymentInfo.setAction(ODTPaymentInfo.ActionType.Verify)
+    private fun getProjectId(): Int {
+        return paymentInfo.projectId
     }
 
-    internal fun setToken(paymentInfo: ODTPaymentInfo) {
+    private fun getPaymentId(): String? {
+        return paymentInfo.paymentId
+    }
+
+    private fun getPaymentAmount(): Long {
+        return paymentInfo.paymentAmount
+    }
+
+    private fun getPaymentCurrency(): String? {
+        return paymentInfo.paymentCurrency
+    }
+
+    private fun getPaymentDescription(): String? {
+        return paymentInfo.paymentDescription
+    }
+
+    private fun getCustomerId(): String? {
+        return paymentInfo.customerId
+    }
+
+    private fun getRegionCode(): String? {
+        return paymentInfo.regionCode
+    }
+
+    private fun getLanguageCode(): String? { //Default value is mobile device language
+        return paymentInfo.languageCode
+    }
+
+    private fun getToken(): String? {
+        return paymentInfo.token
+    }
+
+    private fun getReceiptData(): String? {
+        return paymentInfo.receiptData
+    }
+
+    private fun getBankId(): Int? {
+        return paymentInfo.bankId
+    }
+
+    private fun getHideSavedWallets(): Boolean? {
+        return paymentInfo.hideSavedWallets
+    }
+
+    private fun getForcePaymentMethod(): String? {
+        return paymentInfo.forcePaymentMethod
+    }
+
+    private fun getAction(): ODTPaymentInfo.ActionType { //Default payment action type is ActionType.Sale
+        return paymentInfo.action
+    }
+
+    //Setters for payment info
+    private fun setSignature(signature: String) {
+        paymentInfo.signature = signature
+    }
+    //Set the custom language code (see the ISO 639-1 codes list)
+    private fun setLanguageCode() {
+        paymentInfo.languageCode = "language code"
+    }
+
+    private fun setToken() {
         paymentInfo.token = "token"
     }
 
-    internal fun setReceiptData(paymentInfo: ODTPaymentInfo) {
+    private fun setReceiptData() {
         paymentInfo.receiptData = "receipt data"
     }
 
     // if you want to hide the saved cards, pass the value - true
-    internal fun setHideSavedWallets(paymentInfo: ODTPaymentInfo) {
+    private fun setHideSavedWallets() {
         paymentInfo.hideSavedWallets = false
     }
 
     // For forced opening of the payment method, pass its code. Example: qiwi, card ...
-    internal fun setForcePaymentMethod(paymentInfo: ODTPaymentInfo) {
+    private fun setForcePaymentMethod() {
         paymentInfo.forcePaymentMethod = "card"
     }
 
-    internal fun setRecurrent(paymentInfo: ODTPaymentInfo) {
+    private fun setBankId() {
+        paymentInfo.bankId = 123
+    }
+
+
+    //Additional getters and setters
+    //RecurrentInfo
+    private fun getODTRecurrentInfo(): ODTRecurrentInfo? {
+        return paymentInfo.odtRecurrentInfo
+    }
+    private fun setRecurrentInfo(recurrentInfo: ODTRecurrentInfo) {
+        paymentInfo.setRecurrent(recurrentInfo)
+    }
+    //Screen Display Mode
+    private fun getScreenDisplayModes(): List<ODTScreenDisplayMode>? {
+        return paymentInfo.odtScreenDisplayModes
+    }
+    private fun setODTScreenDisplayModes(odtScreenDisplayModes: List<ODTScreenDisplayMode>) {
+        paymentInfo.setODTScreenDisplayMode(odtScreenDisplayModes)
+    }
+    //Alternative variant of setter
+    private fun addODTScreenDisplayModes() {
+        paymentInfo
+            .addODTScreenDisplayMode("hide_decline_final_page")
+            .addODTScreenDisplayMode("hide_success_final_page")
+    }
+    //AdditionalFields
+    private fun getODTAdditionalFields(): Array<ODTAdditionalField>? {
+        return paymentInfo.odtAdditionalFields
+    }
+    private fun setODTAdditionalFields(odtAdditionalFields: Array<ODTAdditionalField>?) {
+        paymentInfo.odtAdditionalFields = odtAdditionalFields
+    }
+    //3DS Info
+    private fun getOdtThreeDSecureInfo(): ODTThreeDSecureInfo? {
+        return paymentInfo.odtThreeDSecureInfo
+    }
+    private fun setOdtThreeDSecureInfo(odtThreeDSecureInfo: ODTThreeDSecureInfo?)  {
+        paymentInfo.odtThreeDSecureInfo = odtThreeDSecureInfo
+    }
+    //Setters for custom payment action type (Auth, Tokenize, Verify)
+    private fun setDMSPayment() {
+        paymentInfo.action = ODTPaymentInfo.ActionType.Auth
+    }
+    private fun setActionTokenize() {
+        paymentInfo.action = ODTPaymentInfo.ActionType.Tokenize
+    }
+    private fun setActionVerify() {
+        paymentInfo.action = ODTPaymentInfo.ActionType.Verify
+    }
+    private fun setAction(action: ODTPaymentInfo.ActionType) {
+        paymentInfo.action = action
+    }
+
+    private fun setupRecurrentInfo() {
         val recurrentInfo = ODTRecurrentInfo(
             "R", // type
             "20", // expiry day
@@ -111,7 +253,6 @@ class MainActivity : AppCompatActivity() {
             "12:00:00", // start time
             "12-02-2020", // start date
             "your_recurrent_id") // recurrent payment ID
-
         // Additional options if needed
         recurrentInfo.setAmount(1000)
         recurrentInfo.setSchedule(
@@ -120,18 +261,26 @@ class MainActivity : AppCompatActivity() {
                 ODTRecurrentInfoSchedule("20-10-2020", 1000)
             )
         )
-        paymentInfo.setRecurrent(recurrentInfo)
+        setRecurrentInfo(recurrentInfo)
     }
 
-    internal fun setKnownAdditionalFields(paymentInfo: ODTPaymentInfo) {
-        paymentInfo.setODTAdditionalFields(arrayOf(
-            ODTAdditionalField(ODTAdditionalFieldEnums.AdditionalFieldType.customer_first_name, "Mark"),
-            ODTAdditionalField(ODTAdditionalFieldEnums.AdditionalFieldType.billing_country, "US")
+    private fun setupAdditionalFields() {
+        setODTAdditionalFields(arrayOf(
+            ODTAdditionalField(
+                ODTAdditionalFieldEnums.AdditionalFieldType.customer_first_name, "Mark"),
+            ODTAdditionalField(
+                ODTAdditionalFieldEnums.AdditionalFieldType.billing_country, "US")))
+    }
+
+    private fun setupScreenDisplayModes() {
+        setODTScreenDisplayModes(arrayListOf(
+            ODTScreenDisplayMode.HIDE_DECLINE_FINAL_PAGE,
+            ODTScreenDisplayMode.HIDE_SUCCESS_FINAL_PAGE
         ))
     }
 
     // Setup 3D Secure parameters
-    internal fun setupThreeDSecureParams(paymentInfo: ODTPaymentInfo) {
+    private fun setupThreeDSecureParams() {
         val threeDSecureInfo = ODTThreeDSecureInfo()
 
         val threeDSecurePaymentInfo = ODTThreeDSecurePaymentInfo()
@@ -211,10 +360,10 @@ class MainActivity : AppCompatActivity() {
         threeDSecureInfo.threeDSecureCustomerInfo = threeDSecureCustomerInfo
         threeDSecureInfo.threeDSecurePaymentInfo = threeDSecurePaymentInfo
 
-        paymentInfo.setODTThreeDSecureInfo(threeDSecureInfo)
+        setOdtThreeDSecureInfo(threeDSecureInfo)
     }
 
-    fun configureGooglePayParams(paymentInfo: ODTPaymentInfo) {
+    private fun setupGooglePay() {
         paymentInfo.merchantId = "your merchant id"
         paymentInfo.paymentDataRequest = PaymentDataRequest.fromJson(GooglePayJsonParams.getJSON())
     }
